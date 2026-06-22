@@ -27,12 +27,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Windows Forms 引用 -->
-    <Reference Include="System.Windows.Forms" />
-    <Reference Include="System.Drawing" />
-    
-    <!-- System.Speech 引用 (本地语音识别) -->
-    <Reference Include="System.Speech" />
+    <!-- NuGet 包引用 -->
+    <PackageReference Include="System.Speech" Version="8.0.0" />
   </ItemGroup>
 
   <ItemGroup>
