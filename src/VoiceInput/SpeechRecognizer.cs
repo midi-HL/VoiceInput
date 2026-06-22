@@ -19,6 +19,9 @@ namespace VoiceInput
         public event EventHandler<string>? RecognitionCompleted;
         public event EventHandler<string>? RecognitionFailed;
         public event EventHandler<string>? IntermediateResult;
+        
+        // 流式识别中间结果回调
+        public event EventHandler<string>? StreamingResult;
 
         public SpeechRecognizer(AudioCapture audioCapture, LlmRefiner llmRefiner)
         {
@@ -76,13 +79,13 @@ namespace VoiceInput
                 string result;
 
                 if (Settings.RecognitionMode == RecognitionMode.AiTranscription)
-                    // AI 语音转写模式
                 {
-                    result = await RecognizeWithAiAsync();
+                    // AI 语音转写模式（流式输出）
+                    result = await RecognizeWithAiStreamAsync();
                 }
                 else
-                    // 本地识别模式
                 {
+                    // 本地识别模式
                     result = await RecognizeLocalAsync();
                 }
 
@@ -156,6 +159,33 @@ namespace VoiceInput
             });
         }
 
+        /// <summary>
+        /// 使用 AI API 流式转录音频
+        /// </summary>
+        private async Task<string> RecognizeWithAiStreamAsync()
+        {
+            // 获取录制的音频数据
+            byte[] pcmData = _audioCapture.GetRecordedAudio();
+
+            if (pcmData.Length == 0)
+            {
+                return string.Empty;
+            }
+
+            // 编码为 WAV 格式
+            byte[] wavData = AudioCapture.EncodeToWav(pcmData);
+
+            // 调用 AI API 进行流式转写，实时更新 HUD
+            return await _llmRefiner.TranscribeAudioStreamAsync(wavData, _currentLanguage, (partialText) =>
+            {
+                // 触发流式结果事件，更新 HUD 显示
+                StreamingResult?.Invoke(this, partialText);
+            });
+        }
+
+        /// <summary>
+        /// 使用 AI API 非流式转录音频
+        /// </summary>
         private async Task<string> RecognizeWithAiAsync()
         {
             // 获取录制的音频数据

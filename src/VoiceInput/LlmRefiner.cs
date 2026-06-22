@@ -18,7 +18,7 @@ namespace VoiceInput
         public LlmRefiner()
         {
             _httpClient = new HttpClient();
-            _httpClient.Timeout = TimeSpan.FromSeconds(30);
+            _httpClient.Timeout = TimeSpan.FromSeconds(60);
 
             _jsonOptions = new JsonSerializerOptions
             {
@@ -78,7 +78,116 @@ namespace VoiceInput
         }
 
         /// <summary>
-        /// 使用 MiMo-V2.5-ASR 转录音频
+        /// 使用 MiMo-V2.5-ASR 转录音频（流式输出）
+        /// </summary>
+        public async Task<string> TranscribeAudioStreamAsync(byte[] wavData, string language, Action<string>? onPartialResult = null)
+        {
+            if (wavData.Length == 0) return string.Empty;
+
+            try
+            {
+                // 使用 chat/completions 端点
+                string apiUrl = $"{Settings.ApiBaseUrl}/v1/chat/completions";
+
+                // 将音频转换为 base64
+                string base64Audio = Convert.ToBase64String(wavData);
+                string audioDataUrl = $"data:audio/wav;base64,{base64Audio}";
+
+                // 构建请求体（启用流式输出）
+                var requestBody = new
+                {
+                    model = Settings.AsrModel,
+                    messages = new[]
+                    {
+                        new
+                        {
+                            role = "user",
+                            content = new object[]
+                            {
+                                new
+                                {
+                                    type = "input_audio",
+                                    input_audio = new
+                                    {
+                                        data = audioDataUrl
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    asr_options = new
+                    {
+                        language = ConvertLanguageCode(language)
+                    },
+                    stream = true
+                };
+
+                string json = JsonSerializer.Serialize(requestBody, _jsonOptions);
+                var request = new HttpRequestMessage(HttpMethod.Post, apiUrl)
+                {
+                    Content = new StringContent(json, Encoding.UTF8, "application/json")
+                };
+
+                _httpClient.DefaultRequestHeaders.Clear();
+                request.Headers.Authorization =
+                    new AuthenticationHeaderValue("Bearer", Settings.ApiKey);
+
+                // 发送请求并获取流式响应
+                var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+                response.EnsureSuccessStatusCode();
+
+                // 读取 SSE 流
+                var fullText = new StringBuilder();
+                using var stream = await response.Content.ReadAsStreamAsync();
+                using var reader = new StreamReader(stream);
+
+                while (!reader.EndOfStream)
+                {
+                    var line = await reader.ReadLineAsync();
+                    if (string.IsNullOrEmpty(line)) continue;
+
+                    // SSE 格式：data: {...}
+                    if (line.StartsWith("data: "))
+                    {
+                        var data = line[6..];
+                        
+                        // 检查结束标志
+                        if (data == "[DONE]")
+                        {
+                            break;
+                        }
+
+                        try
+                        {
+                            var chunk = JsonSerializer.Deserialize<StreamChunk>(data, _jsonOptions);
+                            var content = chunk?.Choices?.FirstOrDefault()?.Delta?.Content;
+                            
+                            if (!string.IsNullOrEmpty(content))
+                            {
+                                fullText.Append(content);
+                                
+                                // 调用回调更新 UI
+                                onPartialResult?.Invoke(fullText.ToString());
+                            }
+                        }
+                        catch (JsonException)
+                        {
+                            // 忽略解析错误
+                        }
+                    }
+                }
+
+                return fullText.ToString();
+            }
+            catch (Exception ex)
+            {
+                Logger.Error("AI 流式转写失败", ex);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// 使用 MiMo-V2.5-ASR 转录音频（非流式）
         /// </summary>
         public async Task<string> TranscribeAudioAsync(byte[] wavData, string language)
         {
@@ -143,7 +252,7 @@ namespace VoiceInput
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"AI 转写失败: {ex.Message}");
+                Logger.Error("AI 转写失败", ex);
                 throw;
             }
         }
@@ -289,11 +398,22 @@ namespace VoiceInput
         private class Choice
         {
             public Message? Message { get; set; }
+            public Delta? Delta { get; set; }
         }
 
         private class Message
         {
             public string? Content { get; set; }
+        }
+
+        private class Delta
+        {
+            public string? Content { get; set; }
+        }
+
+        private class StreamChunk
+        {
+            public Choice[]? Choices { get; set; }
         }
 
         private class TranscriptionResponse

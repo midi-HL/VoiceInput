@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -8,6 +9,16 @@ namespace VoiceInput
 {
     public partial class App : System.Windows.Application
     {
+        #region Win32 API
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetForegroundWindow();
+
+        [DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        #endregion
+
         private static Mutex? _mutex;
         private TrayIcon? _trayIcon;
         private KeyboardHook? _keyboardHook;
@@ -16,6 +27,10 @@ namespace VoiceInput
         private ClipboardInjector? _clipboardInjector;
         private LlmRefiner? _llmRefiner;
         private HudWindow? _hudWindow;
+        
+        // 焦点管理
+        private IntPtr _previousForegroundWindow = IntPtr.Zero;
+        private bool _isRecording = false;
 
         protected override void OnStartup(StartupEventArgs e)
         {
@@ -72,6 +87,13 @@ namespace VoiceInput
                 try
                 {
                     _audioCapture = new AudioCapture();
+                    
+                    // 订阅 RMS 电平事件，更新 HUD 波形
+                    _audioCapture.RmsLevelChanged += (s, level) =>
+                    {
+                        _hudWindow?.UpdateRmsLevel(level);
+                    };
+                    
                     Logger.Info("音频捕获初始化成功");
                 }
                 catch (Exception audioEx)
@@ -85,6 +107,12 @@ namespace VoiceInput
 
                 Logger.Info("初始化语音识别器...");
                 _speechRecognizer = new SpeechRecognizer(_audioCapture, _llmRefiner);
+
+                // 订阅流式识别结果事件，实时更新 HUD
+                _speechRecognizer.StreamingResult += (s, partialText) =>
+                {
+                    _hudWindow?.ShowRecognizingText(partialText);
+                };
 
                 Logger.Info("初始化 HUD 窗口...");
                 _hudWindow = new HudWindow();
@@ -163,36 +191,59 @@ namespace VoiceInput
 
         private void OnKeyDown(object? sender, EventArgs e)
         {
-            if (!Settings.IsEnabled) return;
+            if (!Settings.IsEnabled || _isRecording) return;
 
             try
             {
+                _isRecording = true;
+                
+                // 保存当前前台窗口句柄（用户正在使用的窗口）
+                _previousForegroundWindow = GetForegroundWindow();
+                Logger.Info($"保存前台窗口: {_previousForegroundWindow}");
+                
                 // 开始录音
                 _audioCapture?.StartCapture();
+                
+                // 显示 HUD（不抢夺焦点）
                 _hudWindow?.ShowRecording();
             }
             catch (Exception ex)
             {
                 Logger.Error("开始录音失败", ex);
+                _isRecording = false;
             }
         }
 
         private async void OnKeyUp(object? sender, EventArgs e)
         {
-            if (!Settings.IsEnabled) return;
+            if (!Settings.IsEnabled || !_isRecording) return;
 
             try
             {
-                // 停止录音并开始识别
+                // 停止录音
                 _audioCapture?.StopCapture();
                 _hudWindow?.ShowRecognizing();
 
+                // 恢复原窗口焦点，确保文字注入到正确的位置
+                if (_previousForegroundWindow != IntPtr.Zero)
+                {
+                    Logger.Info($"恢复前台窗口: {_previousForegroundWindow}");
+                    SetForegroundWindow(_previousForegroundWindow);
+                    // 等待焦点恢复
+                    await Task.Delay(50);
+                }
+
+                // 开始识别
                 await _speechRecognizer.RecognizeAsync();
             }
             catch (Exception ex)
             {
                 Logger.Error("语音识别失败", ex);
                 _hudWindow?.ShowError(ex.Message);
+            }
+            finally
+            {
+                _isRecording = false;
             }
         }
 
@@ -206,12 +257,19 @@ namespace VoiceInput
 
             try
             {
+                // 再次确保焦点在原窗口
+                if (_previousForegroundWindow != IntPtr.Zero)
+                {
+                    SetForegroundWindow(_previousForegroundWindow);
+                    await Task.Delay(50);
+                }
+
                 // 注入文字
                 await _clipboardInjector.InjectTextAsync(text);
                 _hudWindow?.ShowCompleted(text);
 
                 // 延迟隐藏
-                await System.Threading.Tasks.Task.Delay(1500);
+                await Task.Delay(1500);
                 _hudWindow?.Hide();
             }
             catch (Exception ex)

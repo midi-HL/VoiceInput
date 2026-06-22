@@ -25,13 +25,9 @@ namespace VoiceInput
         [DllImport("dwmapi.dll")]
         private static extern int DwmExtendFrameIntoClientArea(IntPtr hwnd, ref MARGINS margins);
 
-        [DllImport("user32.dll")]
-        private static extern IntPtr GetForegroundWindow();
-
         private const int GWL_EXSTYLE = -20;
         private const int WS_EX_NOACTIVATE = 0x08000000;
         private const int WS_EX_TOOLWINDOW = 0x00000080;
-        private const int WS_EX_LAYERED = 0x00080000;
 
         [StructLayout(LayoutKind.Sequential)]
         private struct MARGINS
@@ -46,10 +42,12 @@ namespace VoiceInput
 
         private readonly DispatcherTimer _waveformTimer;
         private readonly Random _random = new();
-        private readonly double[] _barWeights = { 0.5, 0.8, 1.0, 0.75, 0.55 };
+        
+        // 7 根波形条的权重
+        private readonly double[] _barWeights = { 0.4, 0.7, 0.9, 1.0, 0.9, 0.7, 0.4 };
         private readonly Rectangle[] _bars;
-        private readonly double[] _currentHeights = { 4, 4, 4, 4, 4 };
-        private readonly double[] _targetHeights = { 4, 4, 4, 4, 4 };
+        private readonly double[] _currentHeights;
+        private readonly double[] _targetHeights;
 
         private Storyboard? _showStoryboard;
         private Storyboard? _hideStoryboard;
@@ -57,18 +55,26 @@ namespace VoiceInput
         private double _currentRmsLevel;
 
         // 动画参数
-        private const double MinBarHeight = 4.0;
-        private const double MaxBarHeight = 26.0;
-        private const double AttackCoefficient = 0.4;
-        private const double ReleaseCoefficient = 0.15;
-        private const double RandomJitter = 0.04;
+        private const double MinBarHeight = 3.0;
+        private const double MaxBarHeight = 20.0;
+        private const double AttackCoefficient = 0.5;
+        private const double ReleaseCoefficient = 0.2;
+        private const double RandomJitter = 0.05;
 
         public HudWindow()
         {
             InitializeComponent();
 
-            // 初始化波形条数组
-            _bars = new[] { Bar1, Bar2, Bar3, Bar4, Bar5 };
+            // 初始化波形条数组（7 根）
+            _bars = new[] { Bar1, Bar2, Bar3, Bar4, Bar5, Bar6, Bar7 };
+            _currentHeights = new double[7];
+            _targetHeights = new double[7];
+            
+            for (int i = 0; i < 7; i++)
+            {
+                _currentHeights[i] = MinBarHeight;
+                _targetHeights[i] = MinBarHeight;
+            }
 
             // 初始化动画
             _showStoryboard = (Storyboard)Resources["ShowStoryboard"];
@@ -106,7 +112,7 @@ namespace VoiceInput
         {
             var hwnd = new WindowInteropHelper(this).Handle;
 
-            // 设置扩展样式：不激活 + 工具窗口
+            // 设置扩展样式：不激活 + 工具窗口（不显示在任务栏）
             int exStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
             exStyle |= WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW;
             SetWindowLong(hwnd, GWL_EXSTYLE, exStyle);
@@ -133,7 +139,7 @@ namespace VoiceInput
             }
 
             // 获取鼠标当前显示器的工作区
-            var position = DpiHelper.CalculateHudPosition(width, 56, Settings.HudBottomOffset);
+            var position = DpiHelper.CalculateHudPosition(width, 40, Settings.HudBottomOffset);
 
             Left = position.X;
             Top = position.Y;
@@ -146,9 +152,8 @@ namespace VoiceInput
                 // 更新文本
                 TextBlock.Text = "";
 
-                // 显示窗口
+                // 显示窗口（不调用 Activate()，避免抢夺焦点）
                 Show();
-                Activate();
                 UpdatePosition();
 
                 // 播放入场动画
@@ -166,6 +171,15 @@ namespace VoiceInput
             Dispatcher.Invoke(() =>
             {
                 TextBlock.Text = "识别中...";
+                _waveformTimer.Stop();
+            });
+        }
+
+        public void ShowRecognizingText(string text)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                TextBlock.Text = text;
             });
         }
 
@@ -224,7 +238,7 @@ namespace VoiceInput
             _hideStoryboard?.Begin();
 
             // 动画完成后隐藏窗口
-            var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+            var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
             timer.Tick += (s, e) =>
             {
                 timer.Stop();
@@ -240,7 +254,7 @@ namespace VoiceInput
 
         private void WaveformTimer_Tick(object? sender, EventArgs e)
         {
-            for (int i = 0; i < 5; i++)
+            for (int i = 0; i < 7; i++)
             {
                 // 计算目标高度
                 double baseHeight = _currentRmsLevel * _barWeights[i];
@@ -251,16 +265,13 @@ namespace VoiceInput
                 targetHeight = Math.Max(MinBarHeight, Math.Min(MaxBarHeight, targetHeight));
 
                 // 平滑过渡
-                double attack = AttackCoefficient;
-                double release = ReleaseCoefficient;
-
                 if (targetHeight > _currentHeights[i])
                 {
-                    _currentHeights[i] += (targetHeight - _currentHeights[i]) * attack;
+                    _currentHeights[i] += (targetHeight - _currentHeights[i]) * AttackCoefficient;
                 }
                 else
                 {
-                    _currentHeights[i] += (targetHeight - _currentHeights[i]) * release;
+                    _currentHeights[i] += (targetHeight - _currentHeights[i]) * ReleaseCoefficient;
                 }
 
                 // 更新波形条高度
