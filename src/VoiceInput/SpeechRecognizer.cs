@@ -70,9 +70,14 @@ namespace VoiceInput
 
         public async Task RecognizeAsync()
         {
-            if (_isRecognizing) return;
+            if (_isRecognizing)
+            {
+                Logger.Warn("RecognizeAsync: 已在识别中，跳过");
+                return;
+            }
 
             _isRecognizing = true;
+            Logger.Info("RecognizeAsync: 开始识别");
 
             try
             {
@@ -80,26 +85,33 @@ namespace VoiceInput
 
                 if (Settings.RecognitionMode == RecognitionMode.AiTranscription)
                 {
-                    // AI 语音转写模式（流式输出）
+                    Logger.Info("RecognizeAsync: 使用 AI 转写模式");
                     result = await RecognizeWithAiStreamAsync();
                 }
                 else
                 {
-                    // 本地识别模式
+                    Logger.Info("RecognizeAsync: 使用本地识别模式");
                     result = await RecognizeLocalAsync();
                 }
+
+                Logger.Info($"RecognizeAsync: 识别结果 '{result}'");
 
                 // LLM 纠错
                 if (Settings.LlmCorrectionEnabled && !string.IsNullOrWhiteSpace(result))
                 {
+                    Logger.Info("RecognizeAsync: 开始 LLM 纠错");
                     result = await _llmRefiner.RefineTextAsync(result);
+                    Logger.Info($"RecognizeAsync: 纠错结果 '{result}'");
                 }
 
                 // 触发完成事件
+                Logger.Info("RecognizeAsync: 触发 RecognitionCompleted 事件");
                 RecognitionCompleted?.Invoke(this, result);
+                Logger.Info("RecognizeAsync: 事件触发完成");
             }
             catch (Exception ex)
             {
+                Logger.Error("RecognizeAsync: 识别失败", ex);
                 RecognitionFailed?.Invoke(this, ex.Message);
             }
             finally

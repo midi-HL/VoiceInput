@@ -220,25 +220,25 @@ namespace VoiceInput
 
             try
             {
-                // 停止录音
+                Logger.Info("OnKeyUp: 停止录音");
                 _audioCapture?.StopCapture();
                 _hudWindow?.ShowRecognizing();
 
-                // 恢复原窗口焦点，确保文字注入到正确的位置
+                // 恢复原窗口焦点
                 if (_previousForegroundWindow != IntPtr.Zero)
                 {
-                    Logger.Info($"恢复前台窗口: {_previousForegroundWindow}");
+                    Logger.Info($"OnKeyUp: 恢复前台窗口 {_previousForegroundWindow}");
                     SetForegroundWindow(_previousForegroundWindow);
-                    // 等待焦点恢复
-                    await Task.Delay(50);
+                    await Task.Delay(100);
                 }
 
-                // 开始识别
+                Logger.Info("OnKeyUp: 开始识别");
                 await _speechRecognizer.RecognizeAsync();
+                Logger.Info("OnKeyUp: 识别完成");
             }
             catch (Exception ex)
             {
-                Logger.Error("语音识别失败", ex);
+                Logger.Error("OnKeyUp: 语音识别失败", ex);
                 _hudWindow?.ShowError(ex.Message);
             }
             finally
@@ -249,23 +249,30 @@ namespace VoiceInput
 
         private async void OnRecognitionCompleted(object? sender, string text)
         {
+            Logger.Info($"OnRecognitionCompleted: 收到文本 '{text}'");
+            
             if (string.IsNullOrWhiteSpace(text))
             {
+                Logger.Info("OnRecognitionCompleted: 文本为空，隐藏 HUD");
                 _hudWindow?.Hide();
                 return;
             }
 
             try
             {
-                // 再次确保焦点在原窗口
+                // 确保焦点在原窗口
                 if (_previousForegroundWindow != IntPtr.Zero)
                 {
+                    Logger.Info($"OnRecognitionCompleted: 恢复前台窗口 {_previousForegroundWindow}");
                     SetForegroundWindow(_previousForegroundWindow);
-                    await Task.Delay(50);
+                    await Task.Delay(100);
                 }
 
                 // 注入文字
+                Logger.Info("OnRecognitionCompleted: 注入文字");
                 await _clipboardInjector.InjectTextAsync(text);
+                Logger.Info("OnRecognitionCompleted: 文字注入完成");
+                
                 _hudWindow?.ShowCompleted(text);
 
                 // 延迟隐藏
@@ -274,7 +281,7 @@ namespace VoiceInput
             }
             catch (Exception ex)
             {
-                Logger.Error("文字注入失败", ex);
+                Logger.Error("OnRecognitionCompleted: 文字注入失败", ex);
                 _hudWindow?.ShowError(ex.Message);
             }
         }

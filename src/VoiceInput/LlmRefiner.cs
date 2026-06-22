@@ -83,12 +83,19 @@ namespace VoiceInput
         /// </summary>
         public async Task<string> TranscribeAudioStreamAsync(byte[] wavData, string language, Action<string>? onPartialResult = null)
         {
-            if (wavData.Length == 0) return string.Empty;
+            if (wavData.Length == 0)
+            {
+                Logger.Warn("TranscribeAudioStreamAsync: 音频数据为空");
+                return string.Empty;
+            }
+
+            Logger.Info($"TranscribeAudioStreamAsync: 开始转写，音频大小 {wavData.Length} 字节");
 
             try
             {
                 // 使用 chat/completions 端点
                 string apiUrl = $"{Settings.ApiBaseUrl}/v1/chat/completions";
+                Logger.Info($"TranscribeAudioStreamAsync: API URL {apiUrl}");
 
                 // 将音频转换为 base64
                 string base64Audio = Convert.ToBase64String(wavData);
@@ -133,9 +140,13 @@ namespace VoiceInput
                 request.Headers.Authorization =
                     new AuthenticationHeaderValue("Bearer", Settings.ApiKey);
 
+                Logger.Info("TranscribeAudioStreamAsync: 发送请求");
+                
                 // 发送请求并获取流式响应
                 var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
                 response.EnsureSuccessStatusCode();
+
+                Logger.Info("TranscribeAudioStreamAsync: 收到响应，开始读取流");
 
                 // 读取 SSE 流
                 var fullText = new StringBuilder();
@@ -155,6 +166,7 @@ namespace VoiceInput
                         // 检查结束标志
                         if (data == "[DONE]")
                         {
+                            Logger.Info("TranscribeAudioStreamAsync: 收到 [DONE] 标志");
                             break;
                         }
 
@@ -166,23 +178,25 @@ namespace VoiceInput
                             if (!string.IsNullOrEmpty(content))
                             {
                                 fullText.Append(content);
+                                Logger.Debug($"TranscribeAudioStreamAsync: 收到内容 '{content}'");
                                 
                                 // 调用回调更新 UI
                                 onPartialResult?.Invoke(fullText.ToString());
                             }
                         }
-                        catch (JsonException)
+                        catch (JsonException ex)
                         {
-                            // 忽略解析错误
+                            Logger.Debug($"TranscribeAudioStreamAsync: JSON 解析失败 {ex.Message}");
                         }
                     }
                 }
 
+                Logger.Info($"TranscribeAudioStreamAsync: 转写完成，结果 '{fullText}'");
                 return fullText.ToString();
             }
             catch (Exception ex)
             {
-                Logger.Error("AI 流式转写失败", ex);
+                Logger.Error("TranscribeAudioStreamAsync: 转写失败", ex);
                 throw;
             }
         }
