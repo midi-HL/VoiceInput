@@ -178,7 +178,7 @@ namespace VoiceInput
                             if (!string.IsNullOrEmpty(content))
                             {
                                 fullText.Append(content);
-                                Logger.Debug($"TranscribeAudioStreamAsync: 收到内容 '{content}'");
+                                Logger.Info($"TranscribeAudioStreamAsync: 收到内容 '{content}'");
                                 
                                 // 调用回调更新 UI
                                 onPartialResult?.Invoke(fullText.ToString());
@@ -186,7 +186,7 @@ namespace VoiceInput
                         }
                         catch (JsonException ex)
                         {
-                            Logger.Debug($"TranscribeAudioStreamAsync: JSON 解析失败 {ex.Message}");
+                            Logger.Info($"TranscribeAudioStreamAsync: JSON 解析失败 {ex.Message}");
                         }
                     }
                 }
