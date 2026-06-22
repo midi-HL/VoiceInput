@@ -142,16 +142,34 @@ namespace VoiceInput
                 Type? enumeratorType = Type.GetTypeFromCLSID(new Guid("BCDE0395-E52F-467C-8E3D-C4579291692E"));
                 if (enumeratorType == null) throw new Exception("无法创建音频设备枚举器类型");
 
+                Logger.Info("AudioCapture: 创建设备枚举器...");
                 _enumerator = (IMMDeviceEnumerator)Activator.CreateInstance(enumeratorType)!;
 
                 // 获取默认麦克风（捕获端点）
+                Logger.Info("AudioCapture: 获取默认麦克风...");
                 int hr = _enumerator.GetDefaultAudioEndpoint(eCapture, eConsole, out _device);
-                if (hr != 0) throw new COMException("获取默认麦克风失败，请检查麦克风是否已连接并启用", hr);
+                if (hr != 0)
+                {
+                    string errorMsg = hr switch
+                    {
+                        unchecked((int)0x80070490) => "未找到音频捕获设备，请检查麦克风是否已连接",
+                        unchecked((int)0x80070005) => "访问音频设备被拒绝，请检查权限设置",
+                        unchecked((int)0x80070015) => "没有可用的音频设备",
+                        _ => $"获取默认麦克风失败 (HRESULT: 0x{hr:X8})"
+                    };
+                    Logger.Error($"AudioCapture: {errorMsg}");
+                    throw new COMException(errorMsg, hr);
+                }
 
                 // 激活音频客户端
+                Logger.Info("AudioCapture: 激活音频客户端...");
                 Guid iidAudioClient = new("1CB9AD4C-DBFA-4c32-B178-C2F568A703B2");
                 hr = _device.Activate(ref iidAudioClient, CLSCTX_ALL, IntPtr.Zero, out object objAudioClient);
-                if (hr != 0) throw new COMException("激活音频客户端失败", hr);
+                if (hr != 0)
+                {
+                    Logger.Error($"AudioCapture: 激活音频客户端失败 (HRESULT: 0x{hr:X8})");
+                    throw new COMException($"激活音频客户端失败 (HRESULT: 0x{hr:X8})", hr);
+                }
 
                 _audioClient = (IAudioClient)objAudioClient;
 
@@ -168,6 +186,7 @@ namespace VoiceInput
                 };
 
                 // 初始化音频客户端（麦克风捕获模式）
+                Logger.Info("AudioCapture: 初始化音频客户端...");
                 hr = _audioClient.Initialize(
                     AUDCLNT_SHAREMODE_SHARED,
                     0, // 无特殊标志，使用默认捕获模式
@@ -175,18 +194,28 @@ namespace VoiceInput
                     ref format,
                     Guid.Empty);
 
-                if (hr != 0) throw new COMException("初始化音频客户端失败", hr);
+                if (hr != 0)
+                {
+                    Logger.Error($"AudioCapture: 初始化音频客户端失败 (HRESULT: 0x{hr:X8})");
+                    throw new COMException($"初始化音频客户端失败 (HRESULT: 0x{hr:X8})", hr);
+                }
 
                 // 获取捕获客户端
+                Logger.Info("AudioCapture: 获取捕获客户端...");
                 Guid iidCaptureClient = new("C8ADBD64-E71E-48a0-A4DE-185C395CD317");
                 hr = _audioClient.GetService(ref iidCaptureClient, out object objCaptureClient);
-                if (hr != 0) throw new COMException("获取捕获客户端失败", hr);
+                if (hr != 0)
+                {
+                    Logger.Error($"AudioCapture: 获取捕获客户端失败 (HRESULT: 0x{hr:X8})");
+                    throw new COMException($"获取捕获客户端失败 (HRESULT: 0x{hr:X8})", hr);
+                }
 
                 _captureClient = (IAudioCaptureClient)objCaptureClient;
+                Logger.Info("AudioCapture: 初始化完成");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"初始化音频客户端失败: {ex.Message}");
+                Logger.Error("AudioCapture: 初始化失败", ex);
                 throw;
             }
         }

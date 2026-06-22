@@ -277,7 +277,15 @@ namespace VoiceInput
             }
             catch { }
             
-            _mutex?.ReleaseMutex();
+            try
+            {
+                _mutex?.ReleaseMutex();
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn($"释放 Mutex 失败: {ex.Message}");
+            }
+            
             _mutex?.Dispose();
 
             base.OnExit(e);
