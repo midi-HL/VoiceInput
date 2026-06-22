@@ -37,6 +37,10 @@ jobs:
       run: |
         dotnet publish src/VoiceInput --configuration Release --output publish --self-contained true --runtime win-x64 --verbosity minimal /p:Version=${{ steps.get_version.outputs.version }}
         
+    - name: Create dist directory
+      run: |
+        New-Item -ItemType Directory -Path dist -Force
+        
     - name: Create portable ZIP
       run: |
         Compress-Archive -Path "publish\*" -DestinationPath "dist\VoiceInput-v${{ steps.get_version.outputs.version }}-portable.zip" -Force
