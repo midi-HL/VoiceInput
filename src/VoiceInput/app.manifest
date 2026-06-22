@@ -20,20 +20,6 @@
     </application>
   </compatibility>
 
-  <!-- DPI 感知配置 -->
-  <application xmlns="urn:schemas-microsoft-com:asm.v3">
-    <windowsSettings>
-      <!-- Per-Monitor V2 DPI 感知 (Windows 10 1703+) -->
-      <dpiAwareness xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">
-        PerMonitorV2, PerMonitor
-      </dpiAwareness>
-      <!-- 向下兼容 Windows 8.1 -->
-      <dpiAware xmlns="http://schemas.microsoft.com/SMI/2005/WindowsSettings">
-        True/PM
-      </dpiAware>
-    </windowsSettings>
-  </application>
-
   <!-- 应用主题 -->
   <dependency>
     <dependentAssembly>

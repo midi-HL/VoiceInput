@@ -91,6 +91,11 @@ namespace VoiceInput
 
             // 识别模式
             var modeItem = new ToolStripMenuItem("识别模式");
+            var aiModeItem = new ToolStripMenuItem("AI 语音转写（API）")
+            {
+                Tag = RecognitionMode.AiTranscription,
+                Checked = Settings.RecognitionMode == RecognitionMode.AiTranscription
+            };
             var localModeItem = new ToolStripMenuItem("本地识别 + LLM 纠错（默认）")
             {
                 Tag = RecognitionMode.LocalWithLlm,
@@ -105,11 +110,6 @@ namespace VoiceInput
             };
             modeItem.DropDownItems.Add(localModeItem);
 
-            var aiModeItem = new ToolStripMenuItem("AI 语音转写（API）")
-            {
-                Tag = RecognitionMode.AiTranscription,
-                Checked = Settings.RecognitionMode == RecognitionMode.AiTranscription
-            };
             aiModeItem.Click += (s, e) =>
             {
                 localModeItem.Checked = false;
