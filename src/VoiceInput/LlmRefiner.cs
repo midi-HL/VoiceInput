@@ -78,7 +78,7 @@ namespace VoiceInput
         }
 
         /// <summary>
-        /// 使用 AI API 转录音频
+        /// 使用 MiMo-V2.5-ASR 转录音频
         /// </summary>
         public async Task<string> TranscribeAudioAsync(byte[] wavData, string language)
         {
@@ -86,35 +86,60 @@ namespace VoiceInput
 
             try
             {
-                string apiUrl = $"{Settings.ApiBaseUrl}/v1/audio/transcriptions";
+                // 使用 chat/completions 端点
+                string apiUrl = $"{Settings.ApiBaseUrl}/v1/chat/completions";
 
-                using var formData = new MultipartFormDataContent();
+                // 将音频转换为 base64
+                string base64Audio = Convert.ToBase64String(wavData);
+                string audioDataUrl = $"data:audio/wav;base64,{base64Audio}";
 
-                // 添加音频文件
-                var audioContent = new ByteArrayContent(wavData);
-                audioContent.Headers.ContentType = new MediaTypeHeaderValue("audio/wav");
-                formData.Add(audioContent, "file", "audio.wav");
+                // 构建请求体
+                var requestBody = new
+                {
+                    model = Settings.AsrModel,
+                    messages = new[]
+                    {
+                        new
+                        {
+                            role = "user",
+                            content = new object[]
+                            {
+                                new
+                                {
+                                    type = "input_audio",
+                                    input_audio = new
+                                    {
+                                        data = audioDataUrl
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    asr_options = new
+                    {
+                        language = ConvertLanguageCode(language)
+                    }
+                };
 
-                // 添加模型参数
-                formData.Add(new StringContent(Settings.AsrModel), "model");
-
-                // 添加语言参数
-                formData.Add(new StringContent(ConvertLanguageCode(language)), "language");
-
-                // 添加响应格式
-                formData.Add(new StringContent("json"), "response_format");
+                string json = JsonSerializer.Serialize(requestBody, _jsonOptions);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
 
                 _httpClient.DefaultRequestHeaders.Clear();
                 _httpClient.DefaultRequestHeaders.Authorization =
                     new AuthenticationHeaderValue("Bearer", Settings.ApiKey);
 
-                var response = await _httpClient.PostAsync(apiUrl, formData);
+                var response = await _httpClient.PostAsync(apiUrl, content);
                 response.EnsureSuccessStatusCode();
 
                 string responseJson = await response.Content.ReadAsStringAsync();
-                var responseObj = JsonSerializer.Deserialize<TranscriptionResponse>(responseJson, _jsonOptions);
+                var responseObj = JsonSerializer.Deserialize<ChatCompletionResponse>(responseJson, _jsonOptions);
 
-                return responseObj?.Text ?? string.Empty;
+                if (responseObj?.Choices?.Length > 0)
+                {
+                    return responseObj.Choices[0].Message?.Content?.Trim() ?? string.Empty;
+                }
+
+                return string.Empty;
             }
             catch (Exception ex)
             {
@@ -199,25 +224,31 @@ namespace VoiceInput
                     return (false, "ASR 模型未配置");
                 }
 
-                // 发送一个简单的请求测试端点是否存在
-                string apiUrl = $"{Settings.ApiBaseUrl}/v1/audio/transcriptions";
+                // 测试 chat/completions 端点
+                string apiUrl = $"{Settings.ApiBaseUrl}/v1/chat/completions";
+
+                var request = new
+                {
+                    model = Settings.AsrModel,
+                    messages = new[]
+                    {
+                        new { role = "user", content = "Hello" }
+                    },
+                    max_tokens = 10
+                };
+
+                string json = JsonSerializer.Serialize(request, _jsonOptions);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
 
                 _httpClient.DefaultRequestHeaders.Clear();
                 _httpClient.DefaultRequestHeaders.Authorization =
                     new AuthenticationHeaderValue("Bearer", Settings.ApiKey);
 
-                // 发送空请求测试端点
-                var response = await _httpClient.GetAsync(apiUrl);
+                var response = await _httpClient.PostAsync(apiUrl, content);
 
-                // 405 Method Not Allowed 表示端点存在但不支持 GET
-                if (response.StatusCode == System.Net.HttpStatusCode.MethodNotAllowed ||
-                    response.StatusCode == System.Net.HttpStatusCode.OK)
+                if (response.IsSuccessStatusCode)
                 {
                     return (true, "ASR 端点可用");
-                }
-                else if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-                {
-                    return (false, "ASR 端点不存在");
                 }
                 else
                 {
