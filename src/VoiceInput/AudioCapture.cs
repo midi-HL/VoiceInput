@@ -14,7 +14,34 @@ namespace VoiceInput
         private interface IMMDeviceEnumerator
         {
             [PreserveSig]
-            int GetDefaultAudioEndpoint(int dataFlow, int role, out IMMDevice ppDevice);
+            int EnumAudioEndpoints(int dataFlow, int dwStateMask, out IMMDeviceCollection ppDevices);
+
+            [PreserveSig]
+            int GetDefaultAudioEndpoint(int dataFlow, int role, out IMMDevice ppEndpoint);
+
+            [PreserveSig]
+            int GetDevice(string pwstrId, out IMMDevice ppDevice);
+
+            [PreserveSig]
+            int RegisterEndpointNotificationCallback(IMMNotificationClient pClient);
+
+            [PreserveSig]
+            int UnregisterEndpointNotificationCallback(IMMNotificationClient pClient);
+        }
+
+        [ComImport, Guid("0BD7A1BE-7A1A-44DB-8397-CC5392387B5E"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+        private interface IMMDeviceCollection
+        {
+            [PreserveSig]
+            int GetCount(out uint pcDevices);
+
+            [PreserveSig]
+            int Item(uint nDevice, out IMMDevice ppDevice);
+        }
+
+        [ComImport, Guid("7991EEC9-7E89-4D85-8390-6C703CEC60C0"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+        private interface IMMNotificationClient
+        {
         }
 
         [ComImport, Guid("D666063F-1587-4E43-81F1-B948E807363F"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
@@ -28,7 +55,7 @@ namespace VoiceInput
         private interface IAudioClient
         {
             [PreserveSig]
-            int Initialize(int streamFlags, int bufferDuration, int periodicity, ref WAVEFORMATEX pFormat, Guid audioSessionGuid);
+            int Initialize(int streamFlags, long bufferDuration, long periodicity, ref WAVEFORMATEX pFormat, ref Guid audioSessionGuid);
 
             [PreserveSig]
             int GetBufferSize(out uint pNumBufferFrames);
@@ -43,7 +70,7 @@ namespace VoiceInput
             int IsFormatSupported(int shareMode, ref WAVEFORMATEX pFormat, out WAVEFORMATEX ppClosestMatch);
 
             [PreserveSig]
-            int GetMixFormat(out WAVEFORMATEX ppDeviceFormat);
+            int GetMixFormat(out IntPtr ppDeviceFormat);
 
             [PreserveSig]
             int GetDevicePeriod(out long phnsDefaultDevicePeriod, out long phnsMinimumDevicePeriod);
@@ -187,12 +214,13 @@ namespace VoiceInput
 
                 // 初始化音频客户端（麦克风捕获模式）
                 Logger.Info("AudioCapture: 初始化音频客户端...");
+                Guid audioSessionGuid = Guid.Empty;
                 hr = _audioClient.Initialize(
                     AUDCLNT_SHAREMODE_SHARED,
-                    0, // 无特殊标志，使用默认捕获模式
-                    0, // 默认缓冲区时长
+                    0, // 0 = 使用默认缓冲区时长
+                    0, // 0 = 忽略 periodicity
                     ref format,
-                    Guid.Empty);
+                    ref audioSessionGuid);
 
                 if (hr != 0)
                 {
