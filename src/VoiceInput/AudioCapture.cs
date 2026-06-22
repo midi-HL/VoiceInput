@@ -143,9 +143,9 @@ namespace VoiceInput
 
                 _enumerator = (IMMDeviceEnumerator)Activator.CreateInstance(enumeratorType)!;
 
-                // 获取默认音频端点（渲染端点用于环回捕获）
-                int hr = _enumerator.GetDefaultAudioEndpoint(eRender, eConsole, out _device);
-                if (hr != 0) throw new COMException("获取默认音频端点失败", hr);
+                // 获取默认麦克风（捕获端点）
+                int hr = _enumerator.GetDefaultAudioEndpoint(eCapture, eConsole, out _device);
+                if (hr != 0) throw new COMException("获取默认麦克风失败，请检查麦克风是否已连接并启用", hr);
 
                 // 激活音频客户端
                 Guid iidAudioClient = new("1CB9AD4C-DBFA-4c32-B178-C2F568A703B2");
@@ -166,10 +166,10 @@ namespace VoiceInput
                     cbSize = 0
                 };
 
-                // 初始化音频客户端（环回模式）
+                // 初始化音频客户端（麦克风捕获模式）
                 hr = _audioClient.Initialize(
                     AUDCLNT_SHAREMODE_SHARED,
-                    AUDCLNT_STREAMFLAGS_LOOPBACK,
+                    0, // 无特殊标志，使用默认捕获模式
                     0, // 默认缓冲区时长
                     ref format,
                     Guid.Empty);
