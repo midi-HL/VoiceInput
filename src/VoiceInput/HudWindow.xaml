@@ -26,14 +26,16 @@
         
         <!-- 动画资源 -->
         <Storyboard x:Key="ShowStoryboard">
-            <!-- 入场动画：缩放 + 透明度 -->
-            <DoubleAnimation Storyboard.TargetProperty="Opacity"
+            <!-- 入场动画：透明度 -->
+            <DoubleAnimation Storyboard.TargetName="HudBorder"
+                             Storyboard.TargetProperty="Opacity"
                              From="0" To="1" Duration="0:0:0.35">
                 <DoubleAnimation.EasingFunction>
                     <BackEase Amplitude="0.3" EasingMode="EaseOut" />
                 </DoubleAnimation.EasingFunction>
             </DoubleAnimation>
             
+            <!-- 入场动画：缩放 -->
             <DoubleAnimation Storyboard.TargetName="ScaleTransform"
                              Storyboard.TargetProperty="ScaleX"
                              From="0.85" To="1.0" Duration="0:0:0.35">
@@ -52,14 +54,16 @@
         </Storyboard>
         
         <Storyboard x:Key="HideStoryboard">
-            <!-- 退场动画：缩放 + 透明度 -->
-            <DoubleAnimation Storyboard.TargetProperty="Opacity"
+            <!-- 退场动画：透明度 -->
+            <DoubleAnimation Storyboard.TargetName="HudBorder"
+                             Storyboard.TargetProperty="Opacity"
                              From="1.0" To="0" Duration="0:0:0.22">
                 <DoubleAnimation.EasingFunction>
                     <QuadraticEase EasingMode="EaseIn" />
                 </DoubleAnimation.EasingFunction>
             </DoubleAnimation>
             
+            <!-- 退场动画：缩放 -->
             <DoubleAnimation Storyboard.TargetName="ScaleTransform"
                              Storyboard.TargetProperty="ScaleX"
                              From="1.0" To="0.9" Duration="0:0:0.22">
