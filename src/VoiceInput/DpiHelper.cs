@@ -3,6 +3,8 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
+using Point = System.Windows.Point;
+using Rect = System.Windows.Rect;
 
 namespace VoiceInput
 {

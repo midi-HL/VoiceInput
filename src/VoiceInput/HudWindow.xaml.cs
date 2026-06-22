@@ -4,8 +4,8 @@ using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
-using System.Windows.Shapes;
 using System.Windows.Threading;
+using Rectangle = System.Windows.Shapes.Rectangle;
 
 namespace VoiceInput
 {
