@@ -1,0 +1,52 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>VoiceInput</RootNamespace>
+    <AssemblyName>VoiceInput</AssemblyName>
+    <Version>1.0.0</Version>
+    <Authors>VoiceInput</Authors>
+    <Description>Windows语音输入工具 - 按住右Alt键录音，松开后自动转录并注入文字</Description>
+    <Copyright>MIT License</Copyright>
+    
+    <!-- 发布配置 -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    
+    <!-- DPI 配置 -->
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    
+    <!-- 资源配置 -->
+    <ResourceBasePath>Resources</ResourceBasePath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Windows Forms 引用 -->
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Drawing" />
+    
+    <!-- System.Speech 引用 (本地语音识别) -->
+    <Reference Include="System.Speech" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 应用清单 -->
+    <None Update="app.manifest">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <!-- 发布配置 -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <Optimize>true</Optimize>
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+  </PropertyGroup>
+
+</Project>

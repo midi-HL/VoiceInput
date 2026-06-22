@@ -1,0 +1,68 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Install Inno Setup
+      run: |
+        choco install innosetup -y
+        
+    - name: Get version from tag
+      id: get_version
+      shell: bash
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/v}
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        
+    - name: Build
+      run: |
+        dotnet publish src/VoiceInput --configuration Release --output publish --self-contained true --runtime win-x64 --verbosity minimal /p:Version=${{ steps.get_version.outputs.version }}
+        
+    - name: Create portable ZIP
+      run: |
+        Compress-Archive -Path "publish\*" -DestinationPath "dist\VoiceInput-v${{ steps.get_version.outputs.version }}-portable.zip" -Force
+        
+    - name: Create installer
+      run: |
+        & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /Q /DVERSION=${{ steps.get_version.outputs.version }} installer\setup.iss
+        
+    - name: Generate checksums
+      run: |
+        $checksums = @()
+        Get-ChildItem dist -File | ForEach-Object {
+          $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash
+          $checksums += "$hash  $($_.Name)"
+        }
+        $checksums | Out-File "dist\checksums.txt" -Encoding UTF8
+        
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          dist/VoiceInput-Setup-v${{ steps.get_version.outputs.version }}-x64.exe
+          dist/VoiceInput-v${{ steps.get_version.outputs.version }}-portable.zip
+          dist/checksums.txt
+        generate_release_notes: true
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
