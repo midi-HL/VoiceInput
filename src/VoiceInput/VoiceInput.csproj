@@ -12,7 +12,6 @@
     <Description>Windows语音输入工具 - 按住右Alt键录音，松开后自动转录并注入文字</Description>
     <Copyright>MIT License</Copyright>
     <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
     
     <!-- 发布配置 -->
     <PublishSingleFile>true</PublishSingleFile>

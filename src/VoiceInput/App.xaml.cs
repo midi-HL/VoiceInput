@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Windows;
+using MessageBox = System.Windows.MessageBox;
 
 namespace VoiceInput
 {
