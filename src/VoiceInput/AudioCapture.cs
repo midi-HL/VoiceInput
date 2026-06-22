@@ -91,6 +91,7 @@ namespace VoiceInput
 
         private const int CLSCTX_ALL = 23;
         private const int eRender = 0;
+        private const int eCapture = 1;
         private const int eConsole = 0;
         private const int AUDCLNT_SHAREMODE_SHARED = 0;
         private const int AUDCLNT_STREAMFLAGS_LOOPBACK = 0x00020000;
