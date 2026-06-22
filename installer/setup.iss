@@ -54,8 +54,8 @@ ShowLanguageDialog=yes
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
-Name: "startupicon"; Description: "开机自动启动"; GroupDescription: "其他选项:"; Flags: checked
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
+Name: "startupicon"; Description: "Start automatically on boot"; GroupDescription: "Other options:"; Flags: checkedonce
 
 [Files]
 ; 主程序
