@@ -8,103 +8,37 @@ namespace VoiceInput
 {
     public class AudioCapture : IDisposable
     {
-        #region WASAPI COM 接口
+        #region WASAPI COM 接口（使用正确的 vtable 顺序）
 
-        [ComImport, Guid("A95664D2-9614-4F35-A746-DE8DB63617E6"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-        private interface IMMDeviceEnumerator
-        {
-            [PreserveSig]
-            int EnumAudioEndpoints(int dataFlow, int dwStateMask, out IMMDeviceCollection ppDevices);
+        // MMDeviceEnumerator 的 CLSID
+        private static readonly Guid CLSID_MMDeviceEnumerator = new Guid("BCDE0395-E52F-467C-8E3D-C4579291692E");
 
-            [PreserveSig]
-            int GetDefaultAudioEndpoint(int dataFlow, int role, out IMMDevice ppEndpoint);
+        // IMMDeviceEnumerator 的 IID
+        private static readonly Guid IID_IMMDeviceEnumerator = new Guid("A95664D2-9614-4F35-A746-DE8DB63617E6");
 
-            [PreserveSig]
-            int GetDevice(string pwstrId, out IMMDevice ppDevice);
+        // IAudioClient 的 IID
+        private static readonly Guid IID_IAudioClient = new Guid("1CB9AD4C-DBFA-4C32-B178-C2F568A703B2");
 
-            [PreserveSig]
-            int RegisterEndpointNotificationCallback(IMMNotificationClient pClient);
+        // IAudioCaptureClient 的 IID
+        private static readonly Guid IID_IAudioCaptureClient = new Guid("C8ADBD64-E71E-48A0-A4DE-185C395CD317");
 
-            [PreserveSig]
-            int UnregisterEndpointNotificationCallback(IMMNotificationClient pClient);
-        }
+        // EDataFlow 枚举
+        private const int eRender = 0;
+        private const int eCapture = 1;
 
-        [ComImport, Guid("0BD7A1BE-7A1A-44DB-8397-CC5392387B5E"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-        private interface IMMDeviceCollection
-        {
-            [PreserveSig]
-            int GetCount(out uint pcDevices);
+        // ERole 枚举
+        private const int eConsole = 0;
 
-            [PreserveSig]
-            int Item(uint nDevice, out IMMDevice ppDevice);
-        }
+        // CLSCTX
+        private const int CLSCTX_ALL = 23;
 
-        [ComImport, Guid("7991EEC9-7E89-4D85-8390-6C703CEC60C0"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-        private interface IMMNotificationClient
-        {
-        }
+        // AUDCLNT_SHAREMODE
+        private const int AUDCLNT_SHAREMODE_SHARED = 0;
 
-        [ComImport, Guid("D666063F-1587-4E43-81F1-B948E807363F"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-        private interface IMMDevice
-        {
-            [PreserveSig]
-            int Activate(ref Guid iid, int dwClsCtx, IntPtr pActivationParams, [MarshalAs(UnmanagedType.IUnknown)] out object ppInterface);
-        }
+        // WAVEFORMATEX
+        private const int WAVE_FORMAT_PCM = 1;
 
-        [ComImport, Guid("1CB9AD4C-DBFA-4c32-B178-C2F568A703B2"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-        private interface IAudioClient
-        {
-            [PreserveSig]
-            int Initialize(int streamFlags, long bufferDuration, long periodicity, ref WAVEFORMATEX pFormat, ref Guid audioSessionGuid);
-
-            [PreserveSig]
-            int GetBufferSize(out uint pNumBufferFrames);
-
-            [PreserveSig]
-            int GetStreamLatency(out long phnsLatency);
-
-            [PreserveSig]
-            int GetCurrentPadding(out uint pNumPaddingFrames);
-
-            [PreserveSig]
-            int IsFormatSupported(int shareMode, ref WAVEFORMATEX pFormat, out WAVEFORMATEX ppClosestMatch);
-
-            [PreserveSig]
-            int GetMixFormat(out IntPtr ppDeviceFormat);
-
-            [PreserveSig]
-            int GetDevicePeriod(out long phnsDefaultDevicePeriod, out long phnsMinimumDevicePeriod);
-
-            [PreserveSig]
-            int Start();
-
-            [PreserveSig]
-            int Stop();
-
-            [PreserveSig]
-            int Reset();
-
-            [PreserveSig]
-            int SetEventHandle(IntPtr eventHandle);
-
-            [PreserveSig]
-            int GetService(ref Guid riid, [MarshalAs(UnmanagedType.IUnknown)] out object ppv);
-        }
-
-        [ComImport, Guid("C8ADBD64-E71E-48a0-A4DE-185C395CD317"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-        private interface IAudioCaptureClient
-        {
-            [PreserveSig]
-            int GetBuffer(out IntPtr ppData, out uint pNumFramesToRead, out uint pdwFlags, out long pu64DevicePosition, out long pu64QPCPosition);
-
-            [PreserveSig]
-            int ReleaseBuffer(uint numFramesRead);
-
-            [PreserveSig]
-            int GetNextPacketSize(out uint pNumFramesInNextPacket);
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
         private struct WAVEFORMATEX
         {
             public ushort wFormatTag;
@@ -116,13 +50,115 @@ namespace VoiceInput
             public ushort cbSize;
         }
 
-        private const int CLSCTX_ALL = 23;
-        private const int eRender = 0;
-        private const int eCapture = 1;
-        private const int eConsole = 0;
-        private const int AUDCLNT_SHAREMODE_SHARED = 0;
-        private const int AUDCLNT_STREAMFLAGS_LOOPBACK = 0x00020000;
-        private const int WAVE_FORMAT_PCM = 1;
+        #endregion
+
+        #region COM 接口定义（使用 ComImport）
+
+        [ComImport]
+        [Guid("A95664D2-9614-4F35-A746-DE8DB63617E6")]
+        [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+        private interface IMMDeviceEnumerator
+        {
+            void EnumAudioEndpoints(
+                [In] int dataFlow,
+                [In] int dwStateMask,
+                [MarshalAs(UnmanagedType.Interface)] out object ppDevices);
+
+            void GetDefaultAudioEndpoint(
+                [In] int dataFlow,
+                [In] int role,
+                [MarshalAs(UnmanagedType.Interface)] out IMMDevice ppEndpoint);
+
+            void GetDevice(
+                [In] [MarshalAs(UnmanagedType.LPWStr)] string pwstrId,
+                [MarshalAs(UnmanagedType.Interface)] out IMMDevice ppDevice);
+
+            void RegisterEndpointNotificationCallback(
+                [In] [MarshalAs(UnmanagedType.Interface)] object pClient);
+
+            void UnregisterEndpointNotificationCallback(
+                [In] [MarshalAs(UnmanagedType.Interface)] object pClient);
+        }
+
+        [ComImport]
+        [Guid("D666063F-1587-4E43-81F1-B948E807363F")]
+        [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+        private interface IMMDevice
+        {
+            void Activate(
+                [In] ref Guid iid,
+                [In] int dwClsCtx,
+                [In] IntPtr pActivationParams,
+                [MarshalAs(UnmanagedType.IUnknown)] out object ppInterface);
+
+            void OpenPropertyStore(
+                [In] int stgmAccess,
+                [MarshalAs(UnmanagedType.Interface)] out object ppProperties);
+
+            void GetId(
+                [MarshalAs(UnmanagedType.LPWStr)] out string ppstrId);
+
+            void GetState(out int pdwState);
+        }
+
+        [ComImport]
+        [Guid("1CB9AD4C-DBFA-4C32-B178-C2F568A703B2")]
+        [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+        private interface IAudioClient
+        {
+            void Initialize(
+                [In] int streamFlags,
+                [In] long bufferDuration,
+                [In] long periodicity,
+                [In] ref WAVEFORMATEX pFormat,
+                [In] ref Guid audioSessionGuid);
+
+            void GetBufferSize(out uint pNumBufferFrames);
+
+            void GetStreamLatency(out long phnsLatency);
+
+            void GetCurrentPadding(out uint pNumPaddingFrames);
+
+            void IsFormatSupported(
+                [In] int shareMode,
+                [In] ref WAVEFORMATEX pFormat,
+                out WAVEFORMATEX ppClosestMatch);
+
+            void GetMixFormat(out IntPtr ppDeviceFormat);
+
+            void GetDevicePeriod(
+                out long phnsDefaultDevicePeriod,
+                out long phnsMinimumDevicePeriod);
+
+            void Start();
+
+            void Stop();
+
+            void Reset();
+
+            void SetEventHandle([In] IntPtr eventHandle);
+
+            void GetService(
+                [In] ref Guid riid,
+                [MarshalAs(UnmanagedType.IUnknown)] out object ppv);
+        }
+
+        [ComImport]
+        [Guid("C8ADBD64-E71E-48A0-A4DE-185C395CD317")]
+        [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+        private interface IAudioCaptureClient
+        {
+            void GetBuffer(
+                out IntPtr ppData,
+                out uint pNumFramesToRead,
+                out uint pdwFlags,
+                out long pu64DevicePosition,
+                out long pu64QPCPosition);
+
+            void ReleaseBuffer([In] uint numFramesRead);
+
+            void GetNextPacketSize(out uint pNumFramesInNextPacket);
+        }
 
         #endregion
 
@@ -141,11 +177,10 @@ namespace VoiceInput
 
         // 音频数据缓冲区
         private readonly ConcurrentQueue<byte[]> _audioBuffers = new();
-        private readonly object _bufferLock = new();
 
         // RMS 电平计算
         private double _currentRmsLevel;
-        private readonly double[] _rmsHistory = new double[60]; // 约 1 秒的历史（16ms 一帧）
+        private readonly double[] _rmsHistory = new double[60];
         private int _rmsHistoryIndex;
 
         // 事件
@@ -166,39 +201,35 @@ namespace VoiceInput
             try
             {
                 // 创建设备枚举器
-                Type? enumeratorType = Type.GetTypeFromCLSID(new Guid("BCDE0395-E52F-467C-8E3D-C4579291692E"));
-                if (enumeratorType == null) throw new Exception("无法创建音频设备枚举器类型");
-
                 Logger.Info("AudioCapture: 创建设备枚举器...");
+                Type enumeratorType = Type.GetTypeFromCLSID(CLSID_MMDeviceEnumerator)!;
                 _enumerator = (IMMDeviceEnumerator)Activator.CreateInstance(enumeratorType)!;
 
                 // 获取默认麦克风（捕获端点）
                 Logger.Info("AudioCapture: 获取默认麦克风...");
-                int hr = _enumerator.GetDefaultAudioEndpoint(eCapture, eConsole, out _device);
-                if (hr != 0)
+                try
                 {
-                    string errorMsg = hr switch
-                    {
-                        unchecked((int)0x80070490) => "未找到音频捕获设备，请检查麦克风是否已连接",
-                        unchecked((int)0x80070005) => "访问音频设备被拒绝，请检查权限设置",
-                        unchecked((int)0x80070015) => "没有可用的音频设备",
-                        _ => $"获取默认麦克风失败 (HRESULT: 0x{hr:X8})"
-                    };
-                    Logger.Error($"AudioCapture: {errorMsg}");
-                    throw new COMException(errorMsg, hr);
+                    _enumerator.GetDefaultAudioEndpoint(eCapture, eConsole, out _device);
+                }
+                catch (COMException ex)
+                {
+                    Logger.Error($"AudioCapture: 获取默认麦克风失败 (HRESULT: 0x{ex.ErrorCode:X8})", ex);
+                    throw new Exception("未找到麦克风设备。请检查：\n1. 麦克风是否已连接\n2. 麦克风是否已启用\n3. 应用是否有麦克风权限", ex);
                 }
 
                 // 激活音频客户端
                 Logger.Info("AudioCapture: 激活音频客户端...");
-                Guid iidAudioClient = new("1CB9AD4C-DBFA-4c32-B178-C2F568A703B2");
-                hr = _device.Activate(ref iidAudioClient, CLSCTX_ALL, IntPtr.Zero, out object objAudioClient);
-                if (hr != 0)
+                try
                 {
-                    Logger.Error($"AudioCapture: 激活音频客户端失败 (HRESULT: 0x{hr:X8})");
-                    throw new COMException($"激活音频客户端失败 (HRESULT: 0x{hr:X8})", hr);
+                    Guid iidAudioClient = IID_IAudioClient;
+                    _device.Activate(ref iidAudioClient, CLSCTX_ALL, IntPtr.Zero, out object objAudioClient);
+                    _audioClient = (IAudioClient)objAudioClient;
                 }
-
-                _audioClient = (IAudioClient)objAudioClient;
+                catch (COMException ex)
+                {
+                    Logger.Error($"AudioCapture: 激活音频客户端失败 (HRESULT: 0x{ex.ErrorCode:X8})", ex);
+                    throw new Exception($"激活音频客户端失败 (HRESULT: 0x{ex.ErrorCode:X8})", ex);
+                }
 
                 // 设置音频格式：16kHz, 单声道, 16bit PCM
                 var format = new WAVEFORMATEX
@@ -212,36 +243,41 @@ namespace VoiceInput
                     cbSize = 0
                 };
 
-                // 初始化音频客户端（麦克风捕获模式）
+                // 初始化音频客户端
                 Logger.Info("AudioCapture: 初始化音频客户端...");
-                Guid audioSessionGuid = Guid.Empty;
-                hr = _audioClient.Initialize(
-                    AUDCLNT_SHAREMODE_SHARED,
-                    0, // 0 = 使用默认缓冲区时长
-                    0, // 0 = 忽略 periodicity
-                    ref format,
-                    ref audioSessionGuid);
-
-                if (hr != 0)
+                try
                 {
-                    Logger.Error($"AudioCapture: 初始化音频客户端失败 (HRESULT: 0x{hr:X8})");
-                    throw new COMException($"初始化音频客户端失败 (HRESULT: 0x{hr:X8})", hr);
+                    Guid audioSessionGuid = Guid.Empty;
+                    _audioClient.Initialize(
+                        AUDCLNT_SHAREMODE_SHARED,
+                        0, // 默认缓冲区时长
+                        0, // 忽略 periodicity
+                        ref format,
+                        ref audioSessionGuid);
+                }
+                catch (COMException ex)
+                {
+                    Logger.Error($"AudioCapture: 初始化音频客户端失败 (HRESULT: 0x{ex.ErrorCode:X8})", ex);
+                    throw new Exception($"初始化音频客户端失败 (HRESULT: 0x{ex.ErrorCode:X8})", ex);
                 }
 
                 // 获取捕获客户端
                 Logger.Info("AudioCapture: 获取捕获客户端...");
-                Guid iidCaptureClient = new("C8ADBD64-E71E-48a0-A4DE-185C395CD317");
-                hr = _audioClient.GetService(ref iidCaptureClient, out object objCaptureClient);
-                if (hr != 0)
+                try
                 {
-                    Logger.Error($"AudioCapture: 获取捕获客户端失败 (HRESULT: 0x{hr:X8})");
-                    throw new COMException($"获取捕获客户端失败 (HRESULT: 0x{hr:X8})", hr);
+                    Guid iidCaptureClient = IID_IAudioCaptureClient;
+                    _audioClient.GetService(ref iidCaptureClient, out object objCaptureClient);
+                    _captureClient = (IAudioCaptureClient)objCaptureClient;
+                }
+                catch (COMException ex)
+                {
+                    Logger.Error($"AudioCapture: 获取捕获客户端失败 (HRESULT: 0x{ex.ErrorCode:X8})", ex);
+                    throw new Exception($"获取捕获客户端失败 (HRESULT: 0x{ex.ErrorCode:X8})", ex);
                 }
 
-                _captureClient = (IAudioCaptureClient)objCaptureClient;
                 Logger.Info("AudioCapture: 初始化完成");
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not Exception { InnerException: not null })
             {
                 Logger.Error("AudioCapture: 初始化失败", ex);
                 throw;
@@ -300,20 +336,15 @@ namespace VoiceInput
                     if (_captureClient == null) break;
 
                     // 检查是否有数据包
-                    int hr = _captureClient.GetNextPacketSize(out uint packetLength);
-                    if (hr != 0 || packetLength == 0)
+                    _captureClient.GetNextPacketSize(out uint packetLength);
+                    if (packetLength == 0)
                     {
                         Thread.Sleep(1);
                         continue;
                     }
 
                     // 获取缓冲区
-                    hr = _captureClient.GetBuffer(out IntPtr dataPtr, out uint framesAvailable, out uint flags, out _, out _);
-                    if (hr != 0)
-                    {
-                        Thread.Sleep(1);
-                        continue;
-                    }
+                    _captureClient.GetBuffer(out IntPtr dataPtr, out uint framesAvailable, out uint flags, out _, out _);
 
                     try
                     {
@@ -347,7 +378,7 @@ namespace VoiceInput
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"音频捕获错误: {ex.Message}");
+                    Logger.Error("音频捕获错误", ex);
                     Thread.Sleep(10);
                 }
             }
@@ -358,7 +389,7 @@ namespace VoiceInput
             if (dataSize == 0) return 0;
 
             long sumSquares = 0;
-            int sampleCount = dataSize / 2; // 16bit = 2 bytes per sample
+            int sampleCount = dataSize / 2;
 
             for (int i = 0; i < dataSize - 1; i += 2)
             {
@@ -367,12 +398,11 @@ namespace VoiceInput
             }
 
             double rms = Math.Sqrt((double)sumSquares / sampleCount);
-            return rms / 32768.0; // 归一化到 0-1
+            return rms / 32768.0;
         }
 
         private void UpdateRmsLevel(double rms)
         {
-            // 平滑处理：attack 系数 40%，release 系数 15%
             double attack = 0.4;
             double release = 0.15;
 
@@ -385,20 +415,14 @@ namespace VoiceInput
                 _currentRmsLevel = _currentRmsLevel + (rms - _currentRmsLevel) * release;
             }
 
-            // 更新历史记录
             _rmsHistory[_rmsHistoryIndex] = _currentRmsLevel;
             _rmsHistoryIndex = (_rmsHistoryIndex + 1) % _rmsHistory.Length;
 
-            // 触发电平变化事件
             RmsLevelChanged?.Invoke(this, _currentRmsLevel);
         }
 
-        /// <summary>
-        /// 获取所有录制的音频数据（PCM 格式）
-        /// </summary>
         public byte[] GetRecordedAudio()
         {
-            var allData = new byte[0];
             var buffers = new byte[_audioBuffers.Count][];
 
             int index = 0;
@@ -407,15 +431,13 @@ namespace VoiceInput
                 buffers[index++] = data;
             }
 
-            // 计算总大小
             int totalSize = 0;
             foreach (var buf in buffers)
             {
                 totalSize += buf.Length;
             }
 
-            // 合并缓冲区
-            allData = new byte[totalSize];
+            var allData = new byte[totalSize];
             int offset = 0;
             foreach (var buf in buffers)
             {
@@ -426,9 +448,6 @@ namespace VoiceInput
             return allData;
         }
 
-        /// <summary>
-        /// 将 PCM 数据编码为 WAV 格式
-        /// </summary>
         public static byte[] EncodeToWav(byte[] pcmData)
         {
             int dataLength = pcmData.Length;
@@ -453,8 +472,8 @@ namespace VoiceInput
             wav[13] = 0x6D; // m
             wav[14] = 0x74; // t
             wav[15] = 0x20; // (space)
-            WriteInt32(wav, 16, 16); // 块大小
-            WriteInt16(wav, 20, 1); // PCM 格式
+            WriteInt32(wav, 16, 16);
+            WriteInt16(wav, 20, 1);
             WriteInt16(wav, 22, Channels);
             WriteInt32(wav, 24, SampleRate);
             WriteInt32(wav, 28, SampleRate * Channels * BitsPerSample / 8);
@@ -468,7 +487,6 @@ namespace VoiceInput
             wav[39] = 0x61; // a
             WriteInt32(wav, 40, dataLength);
 
-            // 复制音频数据
             Array.Copy(pcmData, 0, wav, headerLength, dataLength);
 
             return wav;
