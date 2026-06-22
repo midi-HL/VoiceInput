@@ -40,7 +40,6 @@ ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0.18362
 
 ; 外观
-SetupIconFile=..\src\VoiceInput\Resources\icon.ico
 UninstallDisplayIcon={app}\{#APP_EXE_NAME}
 UninstallDisplayName={#APP_NAME}
 
