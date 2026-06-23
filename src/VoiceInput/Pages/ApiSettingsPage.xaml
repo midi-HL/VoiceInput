@@ -1,0 +1,65 @@
+<Page
+    x:Class="VoiceInput.Pages.ApiSettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Background="Transparent">
+
+    <ScrollViewer Padding="0,16,0,0">
+        <StackPanel Spacing="24" MaxWidth="600">
+            <!-- API Base URL -->
+            <StackPanel Spacing="4">
+                <TextBlock Text="API Base URL" FontSize="15" FontWeight="SemiBold"
+                           Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                <TextBox x:Name="ApiBaseUrlBox" PlaceholderText="如：https://api.openai.com"
+                         TextChanged="ApiBaseUrl_Changed" />
+            </StackPanel>
+
+            <!-- API Key -->
+            <StackPanel Spacing="4">
+                <TextBlock Text="API Key" FontSize="15" FontWeight="SemiBold"
+                           Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                <PasswordBox x:Name="ApiKeyBox" PasswordChanged="ApiKey_Changed" />
+            </StackPanel>
+
+            <!-- Model Configuration -->
+            <TextBlock Text="─── 模型配置 ───────────────────────" FontSize="13"
+                       Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+
+            <StackPanel Spacing="4">
+                <TextBlock Text="转写模型（AI 转写模式使用）" FontSize="15" FontWeight="SemiBold"
+                           Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                <TextBox x:Name="TranscriptionModelBox" PlaceholderText="如：whisper-1"
+                         TextChanged="TranscriptionModel_Changed" />
+                <TextBlock Text="调用 /v1/audio/transcriptions 端点" FontSize="12"
+                           Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+            </StackPanel>
+
+            <StackPanel Spacing="4">
+                <TextBlock Text="纠错模型（LLM 纠错使用）" FontSize="15" FontWeight="SemiBold"
+                           Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                <TextBox x:Name="LlmModelBox" PlaceholderText="如：gpt-4o-mini"
+                         TextChanged="LlmModel_Changed" />
+                <TextBlock Text="调用 /v1/chat/completions 端点" FontSize="12"
+                           Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <Button x:Name="TestConnectionButton" Content="测试连接"
+                        Click="TestConnection_Click" />
+                <TextBlock x:Name="TestResultText" VerticalAlignment="Center" FontSize="13"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+
+            <!-- LLM Correction -->
+            <TextBlock Text="─── LLM 纠错 ──────────────────────" FontSize="13"
+                       Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <ToggleSwitch x:Name="LlmCorrectionToggle" Header="启用 LLM 纠错"
+                              Toggled="LlmCorrection_Toggled" />
+            </StackPanel>
+            <TextBlock Text="转写完成后，将文字发送给纠错模型修正明显识别错误" FontSize="12"
+                       Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+        </StackPanel>
+    </ScrollViewer>
+</Page>

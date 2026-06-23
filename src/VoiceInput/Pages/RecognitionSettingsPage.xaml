@@ -1,0 +1,58 @@
+<Page
+    x:Class="VoiceInput.Pages.RecognitionSettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Background="Transparent">
+
+    <ScrollViewer Padding="0,16,0,0">
+        <StackPanel Spacing="24" MaxWidth="600">
+            <!-- Recognition Mode -->
+            <StackPanel Spacing="8">
+                <TextBlock Text="识别模式" FontSize="15" FontWeight="SemiBold"
+                           Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+
+                <RadioButton x:Name="LocalRadio" Content="本地识别 + LLM 纠错"
+                             Checked="RecognitionMode_Changed"
+                             Margin="0,4,0,0">
+                    <RadioButton.Description>
+                        <TextBlock Text="通过 Windows 本地语音识别转写，无需网络，速度更快"
+                                   FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   TextWrapping="Wrap" />
+                    </RadioButton.Description>
+                </RadioButton>
+
+                <RadioButton x:Name="AiRadio" Content="AI 语音转写（API）"
+                             Checked="RecognitionMode_Changed">
+                    <RadioButton.Description>
+                        <TextBlock Text="通过 OpenAI 兼容 ASR API 转写，识别质量更高，需网络"
+                                   FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   TextWrapping="Wrap" />
+                    </RadioButton.Description>
+                </RadioButton>
+            </StackPanel>
+
+            <!-- Recognition Language -->
+            <StackPanel Spacing="8">
+                <TextBlock Text="识别语言" FontSize="15" FontWeight="SemiBold"
+                           Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                <ComboBox x:Name="LanguageComboBox" Width="200"
+                          SelectionChanged="LanguageComboBox_SelectionChanged">
+                    <ComboBoxItem Content="简体中文" />
+                    <ComboBoxItem Content="English" />
+                    <ComboBoxItem Content="繁體中文" />
+                    <ComboBoxItem Content="日本語" />
+                    <ComboBoxItem Content="한국어" />
+                </ComboBox>
+            </StackPanel>
+
+            <!-- Trigger Key -->
+            <StackPanel Spacing="8">
+                <TextBlock Text="触发按键" FontSize="15" FontWeight="SemiBold"
+                           Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                <ComboBox x:Name="TriggerKeyComboBox" Width="200">
+                    <ComboBoxItem Content="右 Alt 键（默认）" />
+                </ComboBox>
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

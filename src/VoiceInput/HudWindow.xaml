@@ -1,0 +1,60 @@
+<Window
+    x:Class="VoiceInput.HudWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:VoiceInput"
+    Title="VoiceInput HUD"
+    ExtendsContentIntoTitleBar="True">
+
+    <Border
+        x:Name="HudBorder"
+        Background="Transparent"
+        CornerRadius="20"
+        Height="40"
+        Padding="16,0"
+        HorizontalAlignment="Left">
+
+        <Border.RenderTransform>
+            <ScaleTransform x:Name="HudScale" ScaleX="0.85" ScaleY="0.85" />
+        </Border.RenderTransform>
+
+        <Border.RenderTransformOrigin>
+            <Point X="0.5" Y="0.5" />
+        </Border.RenderTransformOrigin>
+
+        <Border.OpacityTransition>
+            <ScalarTransition Duration="0:0:0.25" />
+        </Border.OpacityTransition>
+
+        <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+            <!-- Waveform Bars -->
+            <Canvas
+                x:Name="WaveformCanvas"
+                Width="44" Height="32"
+                VerticalAlignment="Center">
+                <Rectangle x:Name="Bar0" Width="3" Height="4" RadiusX="1.5" RadiusY="1.5"
+                           Fill="White" Canvas.Left="0" Canvas.Top="14" />
+                <Rectangle x:Name="Bar1" Width="3" Height="4" RadiusX="1.5" RadiusY="1.5"
+                           Fill="White" Canvas.Left="9" Canvas.Top="14" />
+                <Rectangle x:Name="Bar2" Width="3" Height="4" RadiusX="1.5" RadiusY="1.5"
+                           Fill="White" Canvas.Left="18" Canvas.Top="14" />
+                <Rectangle x:Name="Bar3" Width="3" Height="4" RadiusX="1.5" RadiusY="1.5"
+                           Fill="White" Canvas.Left="27" Canvas.Top="14" />
+                <Rectangle x:Name="Bar4" Width="3" Height="4" RadiusX="1.5" RadiusY="1.5"
+                           Fill="White" Canvas.Left="36" Canvas.Top="14" />
+            </Canvas>
+
+            <!-- Transcription Text -->
+            <TextBlock
+                x:Name="TranscriptionText"
+                Text=""
+                FontFamily="Segoe UI Variable, Segoe UI"
+                FontSize="14"
+                Foreground="White"
+                VerticalAlignment="Center"
+                MaxWidth="500"
+                TextTrimming="CharacterEllipsis"
+                TextWrapping="NoWrap" />
+        </StackPanel>
+    </Border>
+</Window>
